@@ -1,0 +1,197 @@
+<!DOCTYPE HTML>
+<html lang='en'>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/style.css">
+<link href='https://fonts.googleapis.com/css?family=Merriweather+Sans:400,400italic,700,700italic' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Oranienbaum' rel='stylesheet' type='text/css'>
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta content='nanoc 4.9.9' name='generator'>
+<title>
+Differential Dynamic Programming
+[On a Whim]
+</title>
+</head>
+<body>
+<div id='title'>
+<a title="Main page" href="/">On a Whim</a>
+<div id='nav'>
+<ul>
+<li>
+<a title="About the author, the website, etc." href="/about/">About</a>
+</li>
+<li>
+<a title="Technical Content" href="/blog/">Technical Content</a>
+</li>
+<li>
+<a title="CV" href="/assets/andylee_resume_2018.pdf">CV</a>
+</li>
+</ul>
+</div>
+</div>
+<hr>
+<div id='main'>
+<div id='post'>
+<h1>
+Differential Dynamic Programming
+</h1>
+<aside class='posted_at'>
+Posted at 2018-10-10 14:00
+</aside>
+<aside class='abstract'>
+<b>Abstract:</b>
+DDP is a general purpose algorithm for solving finite horizon discrete-time control problems using dynamic programming.
+</aside>
+<article>
+<p>Differential Dynamic Programming refers to a general class of dynamic programming algorithms that iteratively solve finite-horizon discrete-time control problems by using locally quadratic models of cost and dynamics. This blog post provides a comprehensive introduction to DDP. This blog post closely follows (Tassa et.al 14).<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a></p>
+<p><img src="/assets/ddp_image1.png" title="ddp image" height="300"></p>
+<h1 id="trajectory-optimization">Trajectory Optimization</h1>
+<p>Consider a discrete-time dynamics model for state, control pair <span class="math inline">\((x,u)\)</span>. <span class="math display">\[\begin{equation}
+x_{t+1} = f(x_{t}, u_{t})
+\end{equation}\]</span> Let <span class="math inline">\(U\)</span> be a control sequence <span class="math inline">\(\{u_{0}, u_{1}, \cdots, u_{n}\}\)</span>. The total cost <span class="math inline">\(J\)</span> is defined to be the sum of intermediate costs <span class="math inline">\(l\)</span> and a terminal cost <span class="math inline">\(l_f\)</span>. <span class="math display">\[\begin{equation}
+J(x_{0}, U) = \sum_{t=0}^{n-1}l(x_{t}, u_{t}) + l_{f}(x_{n})
+\end{equation}\]</span> The solution to the optimal control problem is a control sequence that minimizes total cost. <span class="math display">\[\begin{equation}
+U^{*} \equiv \text{argmin}_{U} J(x,U)
+\end{equation}\]</span></p>
+<h1 id="differential-dynamic-programming-framework">Differential Dynamic Programming (Framework)</h1>
+<p>Previously, we covered the LQR (Linear Quadratic Algorithm - add link!) for solving the optimal control problems. Whereas LQR required the cost be quadratic and the dynamics be linear, DDP makes no such assumptions. In that vein, DDP is much more poewrful and can be thought of as a general framework for solving optimal control problems. DDP works by constructing local approximations to cost and dynamics and iteratively solving for the optimal control sequence backwards in time recursively. In pratice, DDP works extremely well and can handle rich problems with complex costs and dynamics.</p>
+<h2 id="ddp-preliminaries">DDP Preliminaries</h2>
+<p>Let <span class="math inline">\(U_{i} = \{u_{i}, u_{i+1}, \cdots u_{n-1}\}\)</span> be the control sequence starting at time <span class="math inline">\(i\)</span>. Define the  <span class="math inline">\(J_{i}\)</span> as the partial sum of costs from <span class="math inline">\(i \to n\)</span>. <span class="math display">\[\begin{equation}
+J_{i}(x, U_{i}) = \sum_{t=i}^{n-1}l(x_{t}, u_{t}) + l_{f}(x_{n})
+\end{equation}\]</span> Define the <strong>value function</strong> <span class="math inline">\(V(x, i)\)</span> to be the cost-to-go evaluated for a fixed state and optimal control sequence. The value function expresses a theoretical minimum on cost for visiting some state <span class="math inline">\(x\)</span>. <span class="math display">\[\begin{equation}
+V(x, i) = \min_{U_{i}} J_{i}(x, U_{i})
+\end{equation}\]</span></p>
+<h2 id="dynamic-in-ddp">“Dynamic” in DDP</h2>
+<p>DDP algorithms solve the optimal control problem by reducing the global problem of finding an optimal control sequence to a series of smaller minimization problems. This is done by recursively solving the value-function for a single optimal control, proceeding backwards in time, hence the name dynamic programming. <span class="math display">\[
+\begin{align}
+V(x, i) &amp;= \min_{u} \bigg[l(x, u) + V(f(x, u), i+1) \bigg] \text{, (backwards recursive-step)}\\
+V(x, n) &amp;= l_{f}(x)  \text{, (base case)}
+\end{align}
+\]</span> The power of the value function is that it allows us to cast the optimal control problem as a dynamic programming problem. DDP algorithms aims to solve this dynamic programming problem using an interative procedure to obtain a the minimizing control at any given time step and recursing backwards in time to obtain the full sequence of controls.</p>
+<h2 id="differential-in-ddp">“Differential” in DDP</h2>
+<p>In the case of DDP, we typically optimize with respect to some nominal trajectory <span class="math display">\[\hat{\tau} = \{(\hat{x_{0}}, \hat{u_{0}}), (\hat{x_{1}}, \hat{u_{1}}), \cdots, (\hat{x_{n-1}}, \hat{u_{n-1}})\}\]</span> Define <span class="math inline">\((x_{i}^{*}, u_{i}^{*})\)</span> be optimal state, control pair for time-step <span class="math inline">\(i\)</span>. Then we define optimal perturbations <span class="math inline">\((\delta x_{i}^{*}, \delta u_{i}^{*})\)</span> as follows. <span class="math display">\[
+\begin{align*}
+x_{i}^{*} &amp;= \hat{x_{i}} + \delta x_{i}^{*} \\
+u_{i}^{*} &amp;= \hat{u_{i}} + \delta u_{i}^{*}
+\end{align*}
+\]</span> We can now recast our original optimization problem of finding the optimal control sequence to a separate, but equivalent problem of finding the optimal control perturbation on some nominal trajectory. Note the equivalence of the following two value functions. <span class="math display">\[
+\begin{align}
+V(x, i) &amp;= \min_{u} \bigg[l(x, u) + V(f(x, u), i+1) \bigg] \\
+V(x, i) &amp;= \min_{\delta u} \bigg[l(\hat{x} + \delta x, \hat{u} + \delta u) + V(f(\hat{x} + \delta x, \hat{u} + \delta u), i+1) \bigg]
+\end{align}
+\]</span> The key insight to note is that we now have a general formulation of the optimal-control problem in terms of perturbations on some nominal trajectory <span class="math inline">\(\hat{\tau}\)</span>, hence the name differential.</p>
+<h2 id="q-function">Q-function</h2>
+<p>There is one more concept we need to introduce before we can discuss DDP methods. That concept is the <strong>Q-function</strong>. Define the Q-function as </p>
+<p><span class="math display">\[\begin{equation}
+Q(\delta x, \delta u) = \bigg(l(\hat{x} + \delta x, \hat{u} + \delta u) - l(\hat{x}, \hat{u})\bigg)
++ \bigg(V(f(\hat{x} + \delta x, \hat{u} + \delta u) - V(f(\hat{x}, \hat{u}) \bigg)
+\end{equation}\]</span></p>
+<p>The Q-function is a scalar function taking vector inputs and it expresses the change in cost that results from perturbing a point in the nominal trajectory <span class="math inline">\((\hat{x}, \hat{u})\)</span> by <span class="math inline">\((\delta x, \delta u)\)</span>. The goal of any DDP algorithm is to find perturbations that minimize the Q-function. In short, the objective of any DDP algorithm is to solve the particular minimization problem expressed as the Q-function.</p>
+<p>We will use the following notation for derivatives of the Q-function. Also note that we will use similar subscript notation to denote derivatives for value function <span class="math inline">\(V\)</span>, dynamics equation <span class="math inline">\(f\)</span> and cost function <span class="math inline">\(l\)</span>.</p>
+<p><span class="math display">\[
+\begin{align*}
+Q_{x} \equiv \frac{\partial}{\partial x} Q \text{ and } Q_{xx} \equiv \frac{\partial}{\partial x}\frac{\partial}{\partial x} Q \\
+Q_{u} \equiv \frac{\partial}{\partial u} Q \text{ and } Q_{uu} \equiv \frac{\partial}{\partial u}\frac{\partial}{\partial u} Q \\
+Q_{ux} \equiv \frac{\partial}{\partial u}\frac{\partial}{\partial x} Q
+\end{align*}
+\]</span> Note the second-order Taylor approximation to the Q-function will be a central for understanding DDP so we introduce it here. This approximation can be conpactly expressed in the following matrix-form.</p>
+<p><span class="math display">\[\begin{equation}
+Q(\delta x, \delta u) \approx \begin{bmatrix}
+1 \\
+\delta x \\
+\delta u
+\end{bmatrix}^{T}
+\begin{bmatrix}
+0 &amp; Q_{x}^{T} &amp; Q_{u}^{T} \\
+Q_{x} &amp; Q_{xx} &amp; Q_{xu} \\
+Q_{u} &amp; Q_{ux} &amp; Q_{uu}
+\end{bmatrix}
+\begin{bmatrix}
+1 \\
+\delta x \\
+\delta u
+\end{bmatrix}
+\end{equation}\]</span></p>
+<p>The expansion coefficients are given as follows.</p>
+<p><span class="math display">\[
+\begin{align}
+Q_{x} &amp;= l_{x} + f_{x}^{T}V_{x}'\\
+Q_{u} &amp;= l_{x} + f_{u}^{T}V_{x}' \\
+Q_{xx} &amp;= l_{xx} + f_{x}^{T}V_{xx}'f_{x} + V_{x}'f_{xx} \\
+Q_{uu} &amp;= l_{uu} + f_{u}^{T}V_{xx}'f_{u} + V_{x}'f_{uu} \\
+Q_{ux} &amp;= l_{ux} + f_{u}^{T}V_{xx}'f_{x} + V_{x}'f_{ux}
+\end{align}
+\]</span></p>
+<h1 id="differential-dynamic-programming-algorithm">Differential Dynamic Programming (Algorithm)</h1>
+<p>I like to think of DDP (Differential Dynamic Programming) as both a framework and an algorithm. DDP is a framework because it formulates the optimal control problem as a dynamic programming problem under the context of looking for minimizing state and control differentials <span class="math inline">\((\delta x, \delta u)\)</span>. Simultaneously, DDP is an algorithm because it solves this problem by taking a particular approach which is to quadratically approximating the costs and dynamics, enabling efficient solutions. In the prevoius section, we described DDP framework and in this section, we will describe the algorithmic steps of DDP. In general, the DDP algorithm can be decomposed into 3 steps: backward-pass, forward-pass and line search.</p>
+<h2 id="backward-pass">Backward Pass</h2>
+<p>To obtain optimal controls, we need to minimize the Q-function w.r.t <span class="math inline">\(\delta u\)</span>. This turns out to have a closed form-solution. We obtain <span class="math inline">\(\delta u^{*}\)</span> by solving <span class="math inline">\(\frac{\partial Q}{\partial \delta u} =0\)</span> for <span class="math inline">\(\delta u\)</span>.</p>
+<p><span class="math display">\[
+\begin{align}
+\delta u^{*} &amp;= \text{arg}\min_{\delta u} Q(\delta x, \delta u) \\
+&amp;= -Q_{uu}^{-1}(Q_{u} + Q_{ux}\delta x)
+\end{align}
+\]</span></p>
+<p>By initializing the value-function <span class="math inline">\(V(x, n) = l_{f}(x)\)</span>, we can solve the dynamic programming problem efficiently backwards in time. To see this, observe that at <span class="math inline">\(t=n\)</span>, we can compute all partial derivatives <span class="math inline">\(\{Q_{x}, Q_{u}, Q_{xx}, Q_{uu}, Q_{xu}\}\)</span>, allowing us to obtain the <span class="math inline">\(\delta u^{*}\)</span> for <span class="math inline">\(t=n-1\)</span> using equation (14). Recall that the value function can be expressed in terms of Q-function.</p>
+<p><span class="math display">\[
+\begin{align*}
+V(\delta x) &amp;= \min_{\delta u} Q(\delta x, \delta u) \\
+&amp;= Q(\delta x, \delta u^{*})
+\end{align*}
+\]</span> This relationship is relevant because it indicates that <span class="math inline">\(\delta u^{*}\)</span> for <span class="math inline">\(t=n-1\)</span> can be substituted back into the original Q-function to obtain the value function <span class="math inline">\(V(\delta x, n-1)\)</span>. Note that this value-function can then be used to seed the optimization of the next round <span class="math inline">\(t=n-2\)</span> using the following update equations.</p>
+<p><span class="math display">\[
+\begin{align}
+\Delta V(i) &amp;= -\frac{1}{2}Q_{u}Q_{uu}^{-1}Q_{u} \\
+V_{x}(i)  &amp;= Q_{x} - Q_{u}Q_{uu}^{-1}Q_{ux} \\
+V_{xx}(i) &amp;= Q_{xx} - Q_{xu}Q_{uu}^{-1}Q_{ux}
+\end{align}
+\]</span> This process repeats until we arrive at <span class="math inline">\(t=0\)</span> and is called the  or  in DDP.</p>
+<h2 id="forward-pass">Forward Pass</h2>
+<p>It’s important to note that the backward pass step does not actually give an optimal control sequence <span class="math inline">\(u^{*}\)</span>. Rather, it provides a control policy as a function of <span class="math inline">\(\delta x\)</span>. For those not familiar with controls terminology, this simply means that we have a way of identifying the optimal control assuming we have access to a state differential <span class="math inline">\(\delta x\)</span>. Therefore, after the backward pass is complete, we must perform a forward pass to compute a new trajectory. To compute a new optimal trajectory <span class="math inline">\(\tau^{*}\)</span> we perform the following forward update equations.</p>
+<p><span class="math display">\[
+\begin{align}
+{x}^{*}_{0} &amp;= \hat{x}_{0} \\
+{u}^{*}_{i} &amp;= -Q_{uu}^{-1}(Q_{u} + Q_{ux}({x}^{*}_{i} - \hat{x}_{i})) \\
+{x}^{*}_{i+1} &amp;= f({x}^{*}_{i}, {u}^{*}_{i})
+\end{align}
+\]</span></p>
+<h2 id="line-search">Line Search</h2>
+<p>The forward pass step allows us to generate a new trajectory, but there’s a twist. These trajectories typically cannot be used out of the box. Why? Recall, DDP generates an optimal control policy through a 2nd-order taylor approximation to the actual Q-function and our optimal control policy is based on this approximation. This means that the optimal control policy derived in the backward pass is only valid within a local neighborhood of the dynamics and cost where the approximation is valid. Put in another way, the backward pass tells us how much our controls should change from the nominal trajectory to generate a better trajectory, but if we change too much then our quadratic approximations don’t hold up and we end up at a worse trajectory.</p>
+<p>Backtracking line search is a common technique employed to ensure that the generated trajectory converges to a local minimum (i.e. at every iteration of DDP we obtain a trajectory with lower total cost). This technique works by introducing a step-size parameter <span class="math inline">\(\alpha\)</span> that is applied to the control policy. The purpose of <span class="math inline">\(\alpha\)</span> is to regularize the trajectory and ensure our new trajectory is lower cost. Concretely, we make a minor modification to the forward pass when computing optimal controls and compute a new trajectory <span class="math inline">\(\tau_{\alpha}\)</span>. <span class="math display">\[
+\begin{align}
+u_{i}^{(\alpha)} &amp;= \alpha \cdot \pi_{i}(\delta x_{i})\\
+\tau_{\alpha} &amp;= \{(x_{0}^{(\alpha)},u_{0}^{(\alpha)}), (x_{1}^{(\alpha)},u_{1}^{(\alpha)}), \cdots, x_{n}^{(\alpha)} \}
+\end{align}
+\]</span> Let <span class="math inline">\(\mathcal{L}\)</span> denote the trajectory cost and <span class="math inline">\(\hat{\tau}\)</span> denote the nominal trajectory. Our algorithm continues to decrease <span class="math inline">\(\alpha\)</span> until the following condition is met. <span class="math display">\[\begin{equation}
+\mathcal{L}(\tau_{\alpha}) &lt; \mathcal{L}(\hat{\tau})
+\end{equation}\]</span> The key takeaway is that our control policy is only valid if our deviation from the nominal trajectory is sufficiently small and the backtracking line search is used to ensure a correct step size. This guarantees that we obtain a lower cost trajectory at each iteration of DDP.</p>
+<h1 id="iterative-linear-quadratic-regulator">Iterative Linear Quadratic Regulator</h1>
+<p>In the above sections, I’ve described a general form for DDP. Perhaps the most common variant of DDP is the iterative linear quadratic regulator (iLQR). iLQR is nearly identical to the generic DDP presented earlier, with one exception: we use a linear approximation to the dynamics model rather than an quadratic approximation. This approximation results in the cancellation of a few terms in the 2nd order expansion coefficients for our Q-function derivatives. Notice that the <span class="math inline">\(f_{xx}, f_{uu}, f_{ux}\)</span> terms cancel to 0 because of this linear approximation. <span class="math display">\[
+\begin{align}
+Q_{x} &amp;= l_{x} + f_{x}^{T}V_{x}'\\
+Q_{u} &amp;= l_{x} + f_{u}^{T}V_{u}' \\
+Q_{xx} &amp;= l_{xx} + f_{x}^{T}V_{xx}'f_{x}  \\
+Q_{uu} &amp;= l_{uu} + f_{u}^{T}V_{xx}'f_{u}  \\
+Q_{ux} &amp;= l_{ux} + f_{u}^{T}V_{xx}'f_{x}  
+\end{align}
+\]</span></p>
+<p>That’s all there is to iLQR!</p>
+<h1 id="closing-thoughts">Closing Thoughts</h1>
+<p>To conclude this post, I want to point a few concepts that I think is particularly beautiful about DDP.</p>
+<h3 id="insight-1-dynamic-programming-formulation">Insight 1: Dynamic Programming Formulation</h3>
+<p>I’m always struck by the elegance of formulating optimal control problems as a dynamic programming problem. I think there is a certain beauty whenever we are able to break down problems into smaller subproblems. To me this translation into dynamic programming exposes structure and form latent in the underlying optimization problem. In the DDP case, this mathematical structure is communicated by thinking about the problems in terms of a value-function <span class="math inline">\(V(x, i)\)</span> and Q-function <span class="math inline">\(Q(\delta x, \delta u)\)</span>, two concepts that guide how we should think about a solution.</p>
+<h3 id="insight-2-power-of-a-taylor-series-approximation">Insight 2: Power of a Taylor Series Approximation</h3>
+<p>DDP is also my favorite application of the taylor series approximations. I think it’s incredible that this simple concept we learn in high school calculus is so powerful that its commonly used to solve real-world robotics problems. In this case, we saw that the artful use of 2nd-order approximations to costs and dynamics allowed us to leverage the efficiency of LQR on a much more general class of problems.</p>
+<section class="footnotes">
+<hr>
+<ol>
+<li id="fn1"><p>Control-Limited Differential Dynamic Programming<a href="https://homes.cs.washington.edu/~todorov/papers/TassaICRA14.pdf">(paper)</a><a href="#fnref1" class="footnote-back">↩</a></p></li>
+</ol>
+</section>
+
+</article>
+</div>
+
+</div>
+</body>
+</html>

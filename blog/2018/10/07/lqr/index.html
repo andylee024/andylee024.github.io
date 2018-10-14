@@ -1,0 +1,131 @@
+<!DOCTYPE HTML>
+<html lang='en'>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/style.css">
+<link href='https://fonts.googleapis.com/css?family=Merriweather+Sans:400,400italic,700,700italic' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Oranienbaum' rel='stylesheet' type='text/css'>
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta content='nanoc 4.9.9' name='generator'>
+<title>
+Linear Quadratic Regulator
+[On a Whim]
+</title>
+</head>
+<body>
+<div id='title'>
+<a title="Main page" href="/">On a Whim</a>
+<div id='nav'>
+<ul>
+<li>
+<a title="About the author, the website, etc." href="/about/">About</a>
+</li>
+<li>
+<a title="Technical Content" href="/blog/">Technical Content</a>
+</li>
+<li>
+<a title="CV" href="/assets/andylee_resume_2018.pdf">CV</a>
+</li>
+</ul>
+</div>
+</div>
+<hr>
+<div id='main'>
+<div id='post'>
+<h1>
+Linear Quadratic Regulator
+</h1>
+<aside class='posted_at'>
+Posted at 2018-10-07 20:18
+</aside>
+<aside class='abstract'>
+<b>Abstract:</b>
+LQR is an trajectory optimization algorithm used to solve control problems with quadratic costs and linear dynamics.
+</aside>
+<article>
+<p>One of the most powerful ideas from optimal control is the Linear-Quadratic Regulator (LQR), which is a classic algorithm used to optimally solve a simple class of control problems characterized by linear dynamics and quadratic costs.</p>
+<figure>
+<img src="/assets/lqr_image1.png" title="lqr image" alt="A visual for trajectory optimization. Image courtesy of " height="120"><figcaption>A visual for trajectory optimization. Image courtesy of <a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a></figcaption>
+</figure>
+<h1 id="trajectory-optimization">Trajectory Optimization</h1>
+<p>Consider a discrete-time dynamics model for state, control pair <span class="math inline">\((x,u)\)</span>. <span class="math display">\[\begin{equation}
+x_{t+1} = f(x_{t}, u_{t})
+\end{equation}\]</span> Let <span class="math inline">\(U\)</span> be a control sequence <span class="math inline">\(\{u_{0}, u_{1}, \cdots, u_{n}\}\)</span>. The total cost <span class="math inline">\(J\)</span> is defined to be the sum of intermediate costs <span class="math inline">\(c_{t}\)</span> and a terminal cost <span class="math inline">\(c_{n}\)</span>. <span class="math display">\[\begin{equation}
+J(x_{0}, U) = \sum_{t=0}^{n-1}c_{t}(x_{t}, u_{t}) + c_{n}(x_{n})
+\end{equation}\]</span> The solution to the optimal control problem is a control sequence that minimizes total cost. <span class="math display">\[\begin{equation}
+U^{*} \equiv \text{arg} \min\limits_{U} J(x,U)
+\end{equation}\]</span></p>
+<h1 id="lqr-problem">LQR Problem</h1>
+<p>The linear-quadratic regulator considers a special class of optimal control problems where the cost is quadratic and dynamics function is linear. Why these assumptions you ask? It turns out that these two assumptions allow us to derive closed-form solutions for an optimal sequence of controls. In other words, these two assumptions allow us to solve the optimal control very efficiently. In a later post, we will introduce a more general approach called differential-dynamic programming, which allows us to handle cases where we relax the costs to be non-quadratic and dynamics to be non-linear.</p>
+<ul>
+<li>Let <span class="math inline">\(x \in \mathbb{R}^{n}\)</span> denote state.</li>
+<li>Let <span class="math inline">\(u \in \mathbb{R}^{m}\)</span> denote control.</li>
+<li>Let <span class="math inline">\(A \in \mathbb{R}^{n \times n}\)</span>, <span class="math inline">\(B \in \mathbb{R}^{m \times n}\)</span> be state transition matrices.</li>
+<li>Let <span class="math inline">\(Q \in \mathbb{R}^{n \times n}\)</span>, <span class="math inline">\(R \in \mathbb{R}^{m \times m}\)</span> be cost matrices assumed to be positive semi-definite.</li>
+</ul>
+<p>Formally, we can express the LQR problem as the following optimization problem.</p>
+<p><span class="math display">\[\begin{equation}
+\min_{U} \sum_{t=0}^{n-1}\bigg( x_{t}^{T}Qx_{t} + u^{T}_{t}Ru_{t}\bigg) + x_{n}^{T}Q_{n}x_{n} \\
+\text{subject to} \\ x_{t+1} = Ax_{t} + Bu_{t}
+\end{equation}\]</span></p>
+<p>By formulating the problem as such, we encoded the quadratic-cost requirement. Additionally, we have forced our dynamics function governing state transitions to be linear. That’s it! The LQR problem formulated as a simple, straightforward optimization problem.</p>
+<h1 id="solving-lqr">Solving LQR</h1>
+<p>LQR admits an elegant closed-form solution via dynamic programming for the abovementioned problem statement. In this section, we derive the LQR solution.</p>
+<h2 id="cost-to-go">Cost to Go</h2>
+<p>To derive this solution, we must first define the <em>cost-to-go</em> function, denoted <span class="math inline">\(V_{t}(x)\)</span>. This cost-to-go is a common concept in optimal control used to recast optimization problems in terms of dynamic programming. <span class="math display">\[\begin{equation}
+V_{t}(x) = \min\limits_{u_{t}, \cdots u_{n-1}} \sum_{i=t}^{n-1}\bigg(x_{t}^{T}Qx_{t} + u_{t}^{T}Ru_{t}\bigg) + x_{n}^{T}Q_{n}x_{n} 
+\end{equation}\]</span> Compactly, we can express this concept recursively. <span class="math display">\[\begin{equation}
+V_{t+1}(x) = \min_{u} \bigg\{ x^{T}Qx + u^{T}Ru + V_{t}(x') \bigg\}
+\end{equation}\]</span> <span class="math display">\[\begin{equation}
+x' = Ax + Bu
+\end{equation}\]</span> Intuitively, the cost-to-go for state <span class="math inline">\(x\)</span> yields the minimum cost incurred among all future controls given that one’s trajectory begins at state <span class="math inline">\(x\)</span>. Those familiar with reinforcement learning(RL) will immediately realize that the cost-to-go function is equivalent to the <em>state-value function</em> in RL. The reason we specify the cost-to-go function is to interpret the LQR objective recursively, thereby permitting a dynamic programming solution.</p>
+<h2 id="a-dynamic-programming-solution-to-lqr">A Dynamic Programming Solution To LQR</h2>
+<p>In general, dynamic programming works by iteratively solving smaller instances of subproblems enroute to generating a solution to the initial problem. In the case of LQR, we will apply this principle by solving for optimal controls backwards in time (i.e. <span class="math inline">\(u_{n-1} \to u_{0}\)</span>). Let’s start by communicating the main result and I will follow up by providing some intuition about how we derived this main result.</p>
+<p><strong>Proposition </strong> <em>Fix state variable</em> <span class="math inline">\(x\)</span> <em>and let</em> <span class="math display">\[ u^{*}= (B^{T}P_{t}B + R)^{-1}(B^{T}P_{t}A)\]</span> <em>where</em> <span class="math inline">\(P_{t}\)</span> <em>is some positive semidefinite matrix, then</em> <span class="math inline">\(u^{*}\)</span> <em>is the optimal control that minimizes the following objective</em> <span class="math display">\[ G(u) = x^{T}Qx + u^{T}Ru + V_{t}(Ax + Bu) \]</span></p>
+<p><strong>Proof</strong> Consider the gradient <span class="math inline">\(\nabla_{u}G\)</span>. <span class="math display">\[\nabla_{u}G = \frac{\partial}{\partial u}(x^{T}Qx) + \frac{\partial}{\partial u}(u^{T}Ru) + \frac{\partial}{\partial u}(V_{t}(Ax + Bu)) \]</span> The recursive solution to <span class="math inline">\(V_{t}(\cdot)\)</span> takes the quadratic form, <span class="math inline">\(x_{t}P_{t}x_{t}\)</span>, where <span class="math inline">\(P_{t}\)</span> is semipositive-definite. Substituting this solution in, we obtain</p>
+<p><span class="math display">\[
+\begin{align*}
+\nabla_{u}G &amp;= \frac{\partial}{\partial u}(x^{T}Qx) + \frac{\partial}{\partial u}(u^{T}Ru) + \frac{\partial}{\partial u}\bigg((Ax+Bu)^{T}P_{t}(Ax+Bu)\bigg) \\
+&amp;= 0 + 2u^{T}R + \frac{\partial}{\partial u}\bigg(u^{T}B^{T}P_{t}Bu + x^{T}AP_{t}Ax + 2(u^{T}B^{T}P_{t}Ax)\bigg) \text{ (by claim 1.1) }\\
+&amp;= 2u^{T}R + \frac{\partial}{\partial u}(u^{T}B^{T}P_{t}Bu) + \frac{\partial}{\partial u}(x^{T}AP_{t}Ax) + \frac{\partial}{\partial u}2(u^{T}B^{T}P_{t}Ax) \\
+&amp;= 2u^{T}R + 2u^{T}B^{T}P_{t}B + 2B^{T}P_{t}Ax
+\end{align*}
+\]</span></p>
+<p>Now if we set the gradient to <span class="math inline">\(0\)</span>, we can solve for <span class="math inline">\(u^{*}\)</span>. Note that <span class="math inline">\(u^{*}\)</span> is the optimal solution for <span class="math inline">\(u_{t}\)</span>. After working the solution out, we arrive at the following set of equations. <span class="math display">\[\begin{align}
+u^{*} &amp;= K_{t}x \\
+K_{t} &amp;= -(R + B^{T}P_{t}B)^{-1}(B^{T}P_{t}Ax) \blacksquare
+\end{align}\]</span></p>
+<h2 id="solution-intuitions">Solution Intuitions</h2>
+<p>If you’re like me when I first read the proof, then I was a bit unsatisfied. Yes, the algebra works out, but the proof that I gave provides no interesting insight as to why this solution is the way it is. To that end, let me add my interpretation of why this elegant solution for LQR falls out naturally.</p>
+<h3 id="insight-1-casting-the-problem-as-a-dynamic-progamming-problem">Insight 1: Casting the problem as a dynamic progamming problem</h3>
+<p>Recall that one of our first steps was to define the cost-to-go function, which implicitly formulates the problem as one of dynamic programming. While this does not communicate an immediate, casting the problem in this light does provide a hint: <em>that one can solve this problem iterative</em>. This prompts the question: what is the particular structure of LQR that invites an iterative approach?</p>
+<h3 id="insight-2-the-cost-to-go-function-can-be-easily-computed-at-each-iteration">Insight 2: The cost-to-go function can be easily computed at each iteration</h3>
+<p>I honestly believe this is the key insight and the reason the LQR is such a beautiful concept. In the appendix, I provide a proof for why the value function maintains a quadratic structure <span class="math inline">\(x^{T}Px\)</span> assuming that the value function of the next time-step is also quadratic. The fact that the cost-to-go is quadratic at every single time step from <span class="math inline">\(t = n \to 0\)</span> stems from the structure that we enforce in LQR (i.e. quadratic-cost and linear dynamics). In fact, if you look closely at the proof in the appendix, you will see that we exploit these facts as we derive the result. Hence, under the premise of LQR, optimal controls at each time step can be computed in closed-form using just matrix multiplications, making this algorithm efficient and powerful.</p>
+<h1 id="appendix">Appendix</h1>
+<p><strong>Claim 1.1 </strong> <em>Let</em> <span class="math inline">\(P_{t}\)</span> <em>be positive semidefinite matrix. Then</em> <span class="math display">\[\begin{equation}
+(Ax+Bu)^{T}P_{t}(Ax+Bu) = (u^{T}B^{T}P_{t}Bu) + (x^{T}AP_{t}Ax) + 2(u^{T}B^{T}P_{t}Ax) 
+\end{equation}\]</span></p>
+<p><strong>Proof</strong> First note that the expression <span class="math inline">\((Ax+Bu)^{T}P_{t}(Ax+Bu)\)</span> is in quadratic-form and quadratic-forms preserve symmetry. Consider the expansion of this matrix. <span class="math display">\[
+\begin{align*}
+(Ax+Bu)^{T}P_{t}(Ax+Bu) = (x^{T}A^{T}P_{t}Bu) + (u^{T}B^{T}P_{t}Bu) + (x^{T}AP_{t}Ax) + (u^{T}B^{T}P_{t}Ax)
+\end{align*}
+\]</span> Note that every term in the expansion must be symmetric because symmetry is preserved under matrix addition. Furthermore, recall that for any symmetric matrix <span class="math inline">\(H\)</span>, the following hold <span class="math inline">\(H = H^{T}\)</span>. This means we can freely take the transpose of any term in the summation without changing its value. <span class="math display">\[
+\begin{align*}
+(Ax+Bu)^{T}P_{t}(Ax+Bu) &amp;= (x^{T}A^{T}P_{t}Bu) + (u^{T}B^{T}P_{t}Bu) + (x^{T}AP_{t}Ax) + (u^{T}B^{T}P_{t}Ax) \\
+&amp;=  (x^{T}A^{T}P_{t}Bu) + (u^{T}B^{T}P_{t}Bu)+ (x^{T}AP_{t}Ax)  +  (u^{T}B^{T}P_{t}Ax)^{T} \\
+&amp;=(u^{T}B^{T}P_{t}Bu) + (x^{T}AP_{t}Ax) + 2(x^{T}A^{T}P_{t}Bu) \blacksquare
+\end{align*}
+\]</span> I will add a remark that this claim is useful in the LQR setting by showing this claim also holds in the base case for <span class="math inline">\(t=n\)</span>. This is true by simply noting the terminal cost is <span class="math inline">\(c_{n} = x^{T}Q_{n}x\)</span>.</p>
+<section class="footnotes">
+<hr>
+<ol>
+<li id="fn1"><p>http://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-10.pdf<a href="#fnref1" class="footnote-back">↩</a></p></li>
+</ol>
+</section>
+
+</article>
+</div>
+
+</div>
+</body>
+</html>
